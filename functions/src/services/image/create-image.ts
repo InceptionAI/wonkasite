@@ -27,7 +27,7 @@ export const createImage = async ({
 
   const coreElements = completion.choices[0].message?.content;
 
-  const prompt = createImagePrompt({ subject, style: clientInfo?.image_style, coreElements });
+  const prompt = createImagePrompt({ subject, style: clientInfo?.stylePreferences, coreElements });
   console.log('Prompt:', prompt);
 
   const picture = await openai.images.generate({

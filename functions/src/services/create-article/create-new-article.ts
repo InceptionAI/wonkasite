@@ -1,45 +1,50 @@
-import { createBody } from './create-article/create-section/create-subtitle';
-import { getListSubtitle } from './create-article/create-section/get-list-subtitle';
-import { createContentForIntro } from './create-article/create-section/create-introduction';
-import { createContentForClosure } from './create-article/create-section/create-closure';
-import { preprocessJSON } from './preprocessJSON';
-import { addArticle } from './firebase/add-article';
-import { Locale, localesDetails } from '../types/languages';
-import { improveBody } from './create-article/edit-article/improve-body';
-import { editContent } from './create-article/edit-article/edit-content';
+import { createBody } from './create-section/create-subtitle';
+import { getListSubtitle } from './create-section/get-list-subtitle';
+import { createContentForIntro } from './create-section/create-introduction';
+import { createContentForClosure } from './create-section/create-closure';
+import { preprocessJSON } from '../preprocessJSON';
+import { addArticle } from './add-article';
+import { Locale, localesDetails } from '../../types/languages';
+import { improveBody } from './edit-article/improve-body';
+import { editContent } from './edit-article/edit-content';
 import { Timestamp } from 'firebase-admin/firestore';
-import { Article } from '../types/article';
-import { addSources } from './create-article/add-sources/add-souces';
-import { createGreatestTitleEverMade } from './create-article/create-title/create-greatest-title';
-import { createChartDataset } from './create-chart-dataset.ts/create-dataset';
-import { addChartToArticle } from './create-article/edit-article/add-chart-to-article';
-import { extractLabelAndTitleFromString } from './util/get-chart-info';
-import { addInstructionToPrompt } from './add-instruction-to-prompt';
-import { translate } from './translate-prompt';
-import { dbAdmin } from '../lib/firebase-admin';
+import { Article } from '../../types/article';
+import { addSources } from './add-sources/add-souces';
+import { createGreatestTitleEverMade } from './create-title/create-greatest-title';
+import { createChartDataset } from '../create-chart-dataset.ts/create-dataset';
+import { addChartToArticle } from './edit-article/add-chart-to-article';
+import { extractLabelAndTitleFromString } from '../util/get-chart-info';
+import { addInstructionToPrompt } from '../add-instruction-to-prompt';
+import { translate } from '../translate-prompt';
+import { improveConclusion } from './edit-article/improve-closure';
+import { dbAdmin } from '../../lib/firebase-admin';
 
+//TODO add CTA attribute in the database
 export const createNewArticle = async ({
-  mission,
-  target_audience,
-  source,
-  clientId,
-  lang,
   author,
+  clientId,
+  domain,
+  mission,
   prompt,
-  chart,
+  targetAudience,
+  CTA = "Let's get started",
+  chart = true,
+  lang = 'en',
+  source = false,
 }: {
-  mission: string;
-  target_audience: string;
-  source: boolean;
-  clientId: string;
-  lang: Locale;
   author: string;
+  clientId: string;
+  domain: string;
+  mission: string;
   prompt: string;
-  chart: boolean;
+  targetAudience: string;
+  CTA: string;
+  chart?: boolean;
+  lang?: Locale;
+  source?: boolean;
 }) => {
   //fetch chat gpt api with gpt-4o-mini
   //Étape 1: getListSubtitle, créer une liste de sous-titres
-
   const language = localesDetails[lang].language;
   if (prompt.length < 50) {
     prompt = await addInstructionToPrompt(prompt);
@@ -50,7 +55,7 @@ export const createNewArticle = async ({
 
   //TODO: Might be good to use 4o instead of 4o-mini and turn this operation into a more crutial part of the following steps in using the title in combinasion with the prompt
   // Also, we should use this title for the h1 tag in the article
-  const { title, id } = await createGreatestTitleEverMade(prompt, target_audience, mission, lang);
+  const { title, id } = await createGreatestTitleEverMade(prompt, targetAudience, mission, lang);
 
   const docRef = dbAdmin.doc(`${clientId}/${lang}/articles/${id}`);
 
@@ -61,20 +66,40 @@ export const createNewArticle = async ({
 
   //TODO: Later, no added value, shorten id
 
-  const listSubtitle = await getListSubtitle(prompt, target_audience, mission, title, language);
-
+  const listSubtitle = await getListSubtitle(prompt, targetAudience, mission, title, language);
+  console.log('listSubtitle: ', listSubtitle);
   //Étape 2: First draft, créer le contenu pour chaque sous-titre en parallel
   const listDraft = await Promise.all(
     listSubtitle.map(async (subtitle) => {
       const index = listSubtitle.indexOf(subtitle);
 
       if (index === 0) {
-        return await createContentForIntro(subtitle, mission, prompt, target_audience, listSubtitle);
+        return await createContentForIntro(subtitle, mission, prompt, targetAudience, listSubtitle, lang);
       } else if (index === listSubtitle.length - 1) {
         //TODO: Offer availability in closure for the user to add a call to action (MAYBE)
-        return await createContentForClosure(subtitle, mission, prompt, target_audience, listSubtitle);
+        let conclusion = await createContentForClosure(
+          subtitle,
+          mission,
+          prompt,
+          targetAudience,
+          listSubtitle,
+          language,
+          CTA,
+          domain,
+        );
+        return await improveConclusion(
+          subtitle,
+          mission,
+          prompt,
+          targetAudience,
+          listSubtitle,
+          language,
+          CTA,
+          domain,
+          conclusion,
+        );
       } else {
-        return await createBody(subtitle, mission, prompt, target_audience, listSubtitle);
+        return await createBody(subtitle, mission, prompt, targetAudience, listSubtitle);
       }
     }),
   );
@@ -89,7 +114,7 @@ export const createNewArticle = async ({
 
   //Add sources if needed
   if (source) {
-    content = await addSources(content, mission, prompt, target_audience);
+    content = await addSources(content, mission, prompt, targetAudience);
   }
 
   content = preprocessJSON(content).replace('html', '');
@@ -122,7 +147,9 @@ export const createNewArticle = async ({
     content = preprocessJSON(await addChartToArticle(content, chart_info)).replaceAll('html', '');
     console.log('chart added');
   }
+  const langue = 'en'; //TODO: This is a temporary fix, we should implement the lang tin the database
   const article: Article = {
+    href: `https://inceptionai.ca/${langue}-CA/articles/${id}`,
     id,
     title,
     content,

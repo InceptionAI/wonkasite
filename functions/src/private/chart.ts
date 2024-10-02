@@ -8,19 +8,18 @@ export const createDatasetPrompt = async (
   //TODO: THIS NEED TO BE GREATLY IMPROVED.
   return {
     system: `Your task is to create a chart data structure.
-      Try to compare 2 elements together in the dataset.
-      Use these 2 elements to create a comparison and contrast between 2 ideas.
-      Use these 2 elements to illustrate a point or a concept.
-      The chart must be easy to understand and visually appealing, therefore the dataset should be simple and meaningful.
-      If the data is a percentage, make sure this is clear that it is a percentage.
-      All data should reflect realistic but yet point proving values.
-      You need to create a dataset for a chart ${type ? `of type ${type}` : 'with a type of bar or pie'}.
-      For bar chart, we need at least 2-3 datasets with multiple data to compare for each clear label.
-      For pie chart, we want one dataset with multiple data to compare and analyze with clear labels.
-      The source of the data should be the most credible source you can find to support the data, formated in APA style.
-      Labels should be clear and explanatory, while still being concise.
-      
-
+      - You will use relevant data to populate the dataset.
+      - Try to compare 2 elements together in the dataset.
+      - Use these 2 elements to create a comparison and contrast between 2 ideas.
+      - Use these 2 elements to illustrate a point or a concept.
+      - The chart must be easy to understand and visually appealing, therefore the dataset should be simple and meaningful.
+      - If the data is a percentage, make sure this is clear that it is a percentage.
+      - All data should reflect realistic but yet point proving values.
+      - You need to create a dataset for a chart ${type ? `of type ${type}` : 'with a type of bar or pie'}.
+      - For bar chart, we need at least 2-3 datasets with multiple data to compare for each clear label.
+      - For pie chart, we want one dataset with multiple data to compare and analyze with clear labels.
+      - The source of the data should be the most credible source you can find to support the data, formated in APA style.
+      - Labels should be clear and explanatory, while still being concise.
 
       Expected JSON output:
       {
